@@ -4,12 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  '#f0f9ff',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
+        philly: {
+          black:  '#050f0d',
+          dark:   '#0d1a19',
+          card:   '#112220',
+          green:  '#004C54',
+          neon:   '#00ff87',
+          muted:  '#4d7a74',
+          text:   '#e8f4f2',
         },
+      },
+      fontFamily: {
+        sans: ['Space Grotesk', 'sans-serif'],
       },
     },
   },

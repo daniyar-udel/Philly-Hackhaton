@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 
 const CATEGORIES = [
   'Live Music',
-  'Mural/Visual Art',
-  'Photography',
-  'Influencer/Social Media',
+  'Food Influencer',
+  'Social Influencer',
+  'Mural / Visual Art',
+  'Brand Design',
+  'Video / Film',
+  'Live Painting',
+  'Creative Direction',
   'DJ',
-  'Dance Performance',
   'Other',
 ]
 
@@ -33,95 +36,115 @@ export default function PostGig() {
     navigate('/business')
   }
 
+  const inputClass = `w-full bg-philly-black border border-philly-green/30 rounded-xl px-4 py-3 text-sm text-philly-text placeholder-philly-muted focus:outline-none focus:border-philly-neon transition-colors`
+
   return (
-    <div className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Post a Gig</h1>
-      <p className="text-gray-500 text-sm mb-6">
-        Describe what you need — we'll match you with the best local talent.
+    <div className="max-w-xl mx-auto px-4 py-8">
+
+      {/* Header */}
+      <p className="text-philly-neon text-xs font-semibold uppercase tracking-widest mb-1">New Opportunity</p>
+      <h1 className="text-3xl font-bold text-philly-text mb-1">Post a Gig</h1>
+      <p className="text-philly-muted text-sm mb-8">
+        Describe what you need — our AI matches you with the right Philly creator.
       </p>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm space-y-4">
+      <form onSubmit={handleSubmit} className="bg-philly-card border border-philly-green/20 rounded-2xl p-6 space-y-5">
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Gig Title</label>
+          <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+            Gig Title
+          </label>
           <input
             name="title"
             required
             value={form.title}
             onChange={handleChange}
-            placeholder="e.g. Live Jazz for Friday Night"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            placeholder="e.g. Live music for our grand opening"
+            className={inputClass}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+            Category
+          </label>
           <select
             name="category"
             required
             value={form.category}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={`${inputClass} cursor-pointer`}
           >
-            <option value="">Select a category</option>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            <option value="" className="bg-philly-dark">Select a category</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} className="bg-philly-dark">{c}</option>
+            ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+            Description
+          </label>
           <textarea
             name="description"
             required
             rows={4}
             value={form.description}
             onChange={handleChange}
-            placeholder="Describe the vibe, venue size, style preferences, what you're looking for..."
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+            placeholder="Describe the vibe, venue, audience, what you're really looking for..."
+            className={`${inputClass} resize-none`}
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Be descriptive — this text is used for AI matching.
+          <p className="text-xs text-philly-muted mt-1.5">
+            Be descriptive — this text is what our AI uses to find your perfect match.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Pay</label>
+            <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+              Pay
+            </label>
             <input
               name="pay"
               value={form.pay}
               onChange={handleChange}
-              placeholder="e.g. $200 or negotiable"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. $300 or negotiable"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+              Date
+            </label>
             <input
               type="date"
               name="date"
               value={form.date}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className={`${inputClass} [color-scheme:dark]`}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <label className="block text-xs font-semibold text-philly-muted uppercase tracking-wider mb-2">
+            Location
+          </label>
           <input
             name="location"
             value={form.location}
             onChange={handleChange}
             placeholder="e.g. Old City, Philadelphia"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={inputClass}
           />
         </div>
 
         <button
           type="submit"
-          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 rounded-lg transition-colors"
+          className="w-full bg-philly-neon hover:opacity-90 text-philly-black font-bold py-3.5 rounded-xl transition-opacity mt-2"
         >
-          Post Gig
+          Post Gig — Find My Match
         </button>
       </form>
     </div>
