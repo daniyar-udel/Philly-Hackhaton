@@ -5,7 +5,7 @@ It explains what each person is building, how the pieces talk to each other, and
 
 ---
 
-## The Big Picture (plain english)
+## The Big Picture
 
 We have two types of users:
 - **Artists** — musicians, muralists, photographers, etc. They browse gigs and apply.
@@ -68,7 +68,7 @@ You are the person who makes the app actually remember things.
 
 ---
 
-#### Step 1 — Set up Supabase (do this FIRST, everyone is blocked until this is done)
+#### Set up Supabase (do this FIRST, everyone is blocked until this is done)
 
 1. Go to https://supabase.com → create a free project
 2. Go to **SQL Editor → New Query**
@@ -80,7 +80,7 @@ You are the person who makes the app actually remember things.
 
 ---
 
-#### Step 2 — Wire up auth → `backend/routes/auth.py`
+#### Wire up auth → `backend/routes/auth.py`
 
 Find the `# TODO` comments. Replace the placeholder returns with real Supabase calls:
 
@@ -99,7 +99,7 @@ return {"access_token": response.session.access_token, "role": body.role}
 
 ---
 
-#### Step 3 — Wire gig CRUD → `backend/routes/gigs.py`
+#### Wire gig CRUD → `backend/routes/gigs.py`
 
 ```python
 # POST /gigs — create a gig
@@ -122,7 +122,7 @@ return {"gigs": result.data}
 
 ---
 
-#### Step 4 — Wire profile upsert → `backend/routes/profiles.py`
+#### Wire profile upsert → `backend/routes/profiles.py`
 
 ```python
 # PUT /profiles/artist/:user_id
@@ -139,7 +139,7 @@ result = supabase.table("artist_profiles").upsert({
 
 ---
 
-#### Step 5 — Wire applications → `backend/routes/gigs.py`
+#### Wire applications → `backend/routes/gigs.py`
 
 ```python
 # POST /gigs/:id/apply — artist applies to a gig
@@ -174,7 +174,7 @@ You are building the brain. You turn text into numbers (embeddings) using OpenAI
 
 ---
 
-#### Step 1 — Get your OpenAI key
+#### Get your OpenAI key
 
 Add to `backend/.env`:
 ```
@@ -196,7 +196,7 @@ asyncio.run(test())
 
 ---
 
-#### Step 2 — Embed gigs when they are created → `backend/routes/gigs.py`
+#### Embed gigs when they are created → `backend/routes/gigs.py`
 
 Coordinate with Person A — after they insert a gig, add this:
 ```python
@@ -209,7 +209,7 @@ supabase.table("gigs").update({"embedding": embedding}).eq("id", gig["id"]).exec
 
 ---
 
-#### Step 3 — Embed profiles when they are saved → `backend/routes/profiles.py`
+#### Embed profiles when they are saved → `backend/routes/profiles.py`
 
 ```python
 from services.embeddings import embed_artist_profile
@@ -221,7 +221,7 @@ supabase.table("artist_profiles").update({"embedding": embedding}).eq("user_id",
 
 ---
 
-#### Step 4 — Wire the match queries → `backend/services/matching.py`
+#### Wire the match queries → `backend/services/matching.py`
 
 The SQL functions `match_gigs` and `match_artists` are already in `db/schema.sql` — Supabase runs them for you. Just call them:
 
@@ -245,7 +245,7 @@ def top_artists_for_gig(gig_embedding, limit=10):
 
 ---
 
-#### Step 5 — Wire the match endpoints → `backend/routes/match.py`
+#### Wire the match endpoints → `backend/routes/match.py`
 
 ```python
 # GET /match/gigs?artist_id=xxx
@@ -288,7 +288,7 @@ You are building everything the user sees. You replace mock data with real API c
 
 ---
 
-#### Step 1 — Wire real login → `frontend/src/pages/Login.jsx`
+#### Wire real login → `frontend/src/pages/Login.jsx`
 
 ```js
 import { createClient } from '@supabase/supabase-js'
@@ -309,7 +309,7 @@ if (mode === 'signup') {
 
 ---
 
-#### Step 2 — Replace DEMO_ROLE with real auth → `frontend/src/App.jsx`
+#### Replace DEMO_ROLE with real auth → `frontend/src/App.jsx`
 
 ```js
 // replace the fake useAuth() with:
@@ -330,7 +330,7 @@ useEffect(() => {
 
 ---
 
-#### Step 3 — Wire Artist Feed → `frontend/src/pages/ArtistFeed.jsx`
+#### Wire Artist Feed → `frontend/src/pages/ArtistFeed.jsx`
 
 ```js
 // replace MOCK_GIGS with:
@@ -344,7 +344,7 @@ useEffect(() => {
 
 ---
 
-#### Step 4 — Wire Business Dashboard → `frontend/src/pages/BusinessDashboard.jsx`
+#### Wire Business Dashboard → `frontend/src/pages/BusinessDashboard.jsx`
 
 ```js
 // replace MOCK_ARTISTS with:
@@ -357,7 +357,7 @@ useEffect(() => {
 
 ---
 
-#### Step 5 — Wire Post Gig form → `frontend/src/pages/PostGig.jsx`
+#### Wire Post Gig form → `frontend/src/pages/PostGig.jsx`
 
 ```js
 // replace console.log with:
@@ -371,7 +371,7 @@ navigate('/business')
 
 ---
 
-#### Step 6 — Make it look good
+#### Make it look good
 
 Improve the UI using Tailwind. Ideas:
 - Add loading spinners while API calls are in flight
