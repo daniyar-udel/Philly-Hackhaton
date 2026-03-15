@@ -1,450 +1,250 @@
-# LocalStage — Developer Guide 🛠️
+# LocalStage Developer Guide
 
-This file is for the team. Read this before you write a single line of code.
-It explains what each person is building, how the pieces talk to each other, and how to not step on each other's toes.
+Read this before starting work. It explains what each person owns, how the pieces connect, and how to avoid conflicts.
 
 ---
 
-## The Big Picture
+## Big Picture
 
-We have two types of users:
-- **Artists** — musicians, muralists, photographers, etc. They browse gigs and apply.
-- **Businesses** — bars, coffee shops, etc. They post gigs and find talent.
+We have two user types:
+- Artists: musicians, muralists, photographers, and similar creators
+- Businesses: bars, cafes, event spaces, and local shops
 
-The magic is the **matching**. When an artist fills out their profile and a business posts a gig, we convert both into numbers using OpenAI. Numbers that are "close" to each other mean they're a good match — even if they share zero words in common.
+The matching layer uses OpenAI embeddings. That means we convert artist profiles and gig descriptions into vectors, store them in Supabase, and rank matches by similarity instead of exact keyword overlap.
 
 Example:
-```
-Artist bio:   "lively acoustic guitarist who loves cafés"
-Gig posting:  "upbeat live music for our coffee shop opening"
 
-→ Different words. Same smell. High match score.
-```
+```text
+Artist bio:  "lively acoustic guitarist who loves cafes"
+Gig post:    "upbeat live music for our coffee shop opening"
 
-Those numbers (called embeddings) are stored in Supabase. When an artist opens their feed, Supabase finds the gigs whose numbers are closest to the artist's numbers and returns them ranked.
+Different words, similar meaning, strong match.
+```
 
 ---
 
-## How the three pieces talk to each other
+## System Flow
 
-```
-┌─────────────────────┐         ┌──────────────────────┐
-│     FRONTEND        │ ──────▶ │      BACKEND         │
-│  React + Tailwind   │  HTTP   │  FastAPI (Python)    │
-│  localhost:5173     │ ◀────── │  localhost:8000      │
-└─────────────────────┘         └──────────┬───────────┘
-                                            │ reads/writes
-                                 ┌──────────▼───────────┐
-                                 │      SUPABASE        │
-                                 │  Postgres database   │
-                                 │  pgvector (vectors)  │
-                                 │  Auth (login tokens) │
-                                 └──────────────────────┘
-                                            │
-                                 ┌──────────▼───────────┐
-                                 │      OPENAI          │
-                                 │  Converts text into  │
-                                 │  numbers (embeddings)│
-                                 └──────────────────────┘
+```text
+Frontend (React) <-> Backend (FastAPI) <-> Supabase
+                                   |
+                                   +-> OpenAI embeddings
 ```
 
-- **Frontend** talks only to the Backend (never directly to Supabase or OpenAI)
-- **Backend** talks to Supabase (database) and OpenAI (embeddings)
-- **Supabase** stores everything: users, gigs, profiles, vectors
+- Frontend talks to backend over HTTP
+- Backend reads and writes Supabase data
+- Backend calls OpenAI to generate embeddings
+- Supabase stores users, gigs, profiles, applications, and vectors
 
 ---
 
 ## Team Split
 
-### Person A — Supabase + Backend Foundation
-**Branch:** `feat/backend-supabase`
+### Plan A: Supabase + Backend Foundation
 
-You are building the database and all the routes that save and read data.
-You are the person who makes the app actually remember things.
+**Suggested branch:** `feat/backend-supabase`
 
-**Your work feeds into:**
-- Person B needs your tables to store and read embeddings
-- Person C (frontend) calls your routes to log in, post gigs, view profiles
+This person owns the database setup and the backend routes that save and read real data.
 
----
+Main files:
+- `db/schema.sql`
+- `backend/routes/auth.py`
+- `backend/routes/gigs.py`
+- `backend/routes/profiles.py`
+- `backend/db/client.py`
 
-#### Set up Supabase (do this FIRST, everyone is blocked until this is done)
+#### Plan A checklist
 
-1. Go to https://supabase.com → create a free project
-2. Go to **SQL Editor → New Query**
-3. Paste the entire contents of `db/schema.sql` → click Run
-4. Go to **Settings → API** → copy these and share in group chat:
+1. Create the Supabase project
+2. Run `db/schema.sql`
+3. Share:
    - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY` ← frontend uses this
-   - `SUPABASE_SERVICE_KEY` ← backend uses this (keep secret, don't share publicly)
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_KEY`
+4. Replace placeholder auth logic in `backend/routes/auth.py`
+5. Replace placeholder gig CRUD in `backend/routes/gigs.py`
+6. Replace placeholder profile upsert logic in `backend/routes/profiles.py`
+7. Confirm backend routes work against real Supabase data
+
+#### You are done when
+
+- `POST /auth/signup` creates a user in Supabase
+- `POST /auth/login` returns a real session or access token
+- `POST /gigs` saves a gig
+- `GET /gigs` returns real gigs
+- Artist profile save works against Supabase
 
 ---
 
-#### Wire up auth → `backend/routes/auth.py`
+### Plan B: AI Matching
 
-Find the `# TODO` comments. Replace the placeholder returns with real Supabase calls:
+**Suggested branch:** `feat/ai-matching`
 
-```python
-# signup
-response = supabase.auth.sign_up({"email": body.email, "password": body.password})
-user = response.user
-# save role to our users table
-supabase.table("users").insert({"id": user.id, "role": body.role}).execute()
-return {"user_id": user.id, "role": body.role}
+This person owns embeddings and similarity search.
 
-# login
-response = supabase.auth.sign_in_with_password({"email": body.email, "password": body.password})
-return {"access_token": response.session.access_token, "role": body.role}
-```
+Main files:
+- `backend/services/embeddings.py`
+- `backend/services/matching.py`
+- `backend/routes/match.py`
+- parts of `backend/routes/gigs.py`
+- parts of `backend/routes/profiles.py`
 
----
+#### Plan B checklist
 
-#### Wire gig CRUD → `backend/routes/gigs.py`
+1. Add `OPENAI_API_KEY` to `backend/.env`
+2. Verify embedding generation works
+3. Generate gig embeddings after gig creation
+4. Generate artist profile embeddings after profile save
+5. Wire `match_gigs` and `match_artists` RPC calls
+6. Expose match endpoints in `backend/routes/match.py`
 
-```python
-# POST /gigs — create a gig
-result = supabase.table("gigs").insert({
-    "business_id": body.business_id,
-    "title": body.title,
-    "category": body.category,
-    "description": body.description,
-    "pay": body.pay,
-    "date": body.date,
-    "location": body.location,
-}).execute()
-gig = result.data[0]
-# after insert, tell Person B to generate the embedding (call embed_gig)
+#### You are done when
 
-# GET /gigs — list open gigs
-result = supabase.table("gigs").select("*").eq("status", "open").execute()
-return {"gigs": result.data}
-```
+- Gigs store embeddings in Supabase
+- Artist profiles store embeddings in Supabase
+- `GET /match/gigs?artist_id=...` returns ranked gigs
+- `GET /match/artists?gig_id=...` returns ranked artists
 
 ---
 
-#### Wire profile upsert → `backend/routes/profiles.py`
+### Plan C: Frontend Integration
 
-```python
-# PUT /profiles/artist/:user_id
-result = supabase.table("artist_profiles").upsert({
-    "user_id": user_id,
-    "display_name": body.display_name,
-    "bio": body.bio,
-    "category": body.category,
-    "skills": body.skills,
-    "location": body.location,
-}).execute()
-# after upsert, tell Person B to generate the embedding (call embed_artist_profile)
-```
+**Suggested branch:** `feat/frontend`
 
----
+This person owns the UI, auth wiring, and replacing mock data with live API data.
 
-#### Wire applications → `backend/routes/gigs.py`
+Main files:
+- `frontend/src/App.jsx`
+- `frontend/src/pages/Login.jsx`
+- `frontend/src/pages/ArtistFeed.jsx`
+- `frontend/src/pages/BusinessDashboard.jsx`
+- `frontend/src/pages/PostGig.jsx`
 
-```python
-# POST /gigs/:id/apply — artist applies to a gig
-result = supabase.table("applications").insert({
-    "gig_id": gig_id,
-    "artist_id": body.artist_id,
-    "message": body.message,
-}).execute()
-return {"application": result.data[0]}
-```
+#### Plan C checklist
 
----
+1. Keep using mock data until backend endpoints are ready
+2. Replace demo auth with real auth flow
+3. Load matched gigs for artists
+4. Load matched artists for businesses
+5. Submit real gig creation requests
+6. Add loading, empty, and error states
 
-#### You are done when:
-- [ ] `POST /auth/signup` creates a real user in Supabase
-- [ ] `POST /auth/login` returns a real access token
-- [ ] `POST /gigs/` saves a gig to the `gigs` table
-- [ ] `GET /gigs/` returns real gigs from the database
-- [ ] `PUT /profiles/artist/:id` saves a real artist profile
+#### You are done when
 
----
----
-
-### Person B — AI Matching
-**Branch:** `feat/ai-matching`
-
-You are building the brain. You turn text into numbers (embeddings) using OpenAI, store them in Supabase, and write the queries that find the best matches.
-
-**Your work feeds into:**
-- Person A's routes call your embedding functions after saving data
-- Person C (frontend) calls your `/match/gigs` and `/match/artists` endpoints to show the feed
+- Signup and login work
+- Artist feed shows real matches
+- Business dashboard shows real matches
+- Posting a gig saves data
+- Demo flow looks clean enough to present
 
 ---
 
-#### Get your OpenAI key
+## Git Rules
 
-Add to `backend/.env`:
-```
-OPENAI_API_KEY=sk-...
-```
-
-Test the embedding service is working (`backend/services/embeddings.py` is already written):
-```python
-# run this in a quick test script to confirm it works
-import asyncio
-from services.embeddings import embed_text
-
-async def test():
-    result = await embed_text("lively acoustic guitarist who loves cafés")
-    print(len(result))  # should print 1536
-
-asyncio.run(test())
-```
-
----
-
-#### Embed gigs when they are created → `backend/routes/gigs.py`
-
-Coordinate with Person A — after they insert a gig, add this:
-```python
-from services.embeddings import embed_gig
-
-# after the insert:
-embedding = await embed_gig(gig)  # gig is the dict with title, description, etc
-supabase.table("gigs").update({"embedding": embedding}).eq("id", gig["id"]).execute()
-```
-
----
-
-#### Embed profiles when they are saved → `backend/routes/profiles.py`
-
-```python
-from services.embeddings import embed_artist_profile
-
-# after the upsert:
-embedding = await embed_artist_profile(profile)
-supabase.table("artist_profiles").update({"embedding": embedding}).eq("user_id", user_id).execute()
-```
-
----
-
-#### Wire the match queries → `backend/services/matching.py`
-
-The SQL functions `match_gigs` and `match_artists` are already in `db/schema.sql` — Supabase runs them for you. Just call them:
-
-```python
-# find gigs that match an artist
-def top_gigs_for_artist(artist_embedding, limit=10):
-    result = supabase.rpc("match_gigs", {
-        "query_embedding": artist_embedding,
-        "match_count": limit
-    }).execute()
-    return result.data  # already sorted by match_score, high to low
-
-# find artists that match a gig
-def top_artists_for_gig(gig_embedding, limit=10):
-    result = supabase.rpc("match_artists", {
-        "query_embedding": gig_embedding,
-        "match_count": limit
-    }).execute()
-    return result.data
-```
-
----
-
-#### Wire the match endpoints → `backend/routes/match.py`
-
-```python
-# GET /match/gigs?artist_id=xxx
-async def match_gigs_to_artist(artist_id: str):
-    # 1. fetch artist's embedding from supabase
-    result = supabase.table("artist_profiles").select("embedding").eq("user_id", artist_id).execute()
-    embedding = result.data[0]["embedding"]
-    # 2. run similarity search
-    matches = top_gigs_for_artist(embedding)
-    return {"artist_id": artist_id, "matches": matches}
-
-# GET /match/artists?gig_id=xxx
-async def match_artists_to_gig(gig_id: str):
-    result = supabase.table("gigs").select("embedding").eq("id", gig_id).execute()
-    embedding = result.data[0]["embedding"]
-    matches = top_artists_for_gig(embedding)
-    return {"gig_id": gig_id, "matches": matches}
-```
-
----
-
-#### You are done when:
-- [ ] Posting a gig automatically saves a vector in the `gigs.embedding` column in Supabase
-- [ ] Saving an artist profile saves a vector in `artist_profiles.embedding`
-- [ ] `GET /match/gigs?artist_id=xxx` returns a real ranked list with real match scores
-- [ ] `GET /match/artists?gig_id=xxx` returns a real ranked list
-
----
----
-
-### Person C — Frontend (you)
-**Branch:** `feat/frontend`
-
-You are building everything the user sees. You replace mock data with real API calls, wire up login, and make the UI look good enough to demo.
-
-**Your work feeds into:**
-- You depend on Person A for login and gig/profile routes
-- You depend on Person B for the match endpoints
-- While they build: keep using mock data. When they're done: swap in the real API call. One line change.
-
----
-
-#### Wire real login → `frontend/src/pages/Login.jsx`
-
-```js
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-)
-
-// in handleSubmit:
-if (mode === 'signup') {
-  const { data, error } = await supabase.auth.signUp({ email, password })
-  // also POST to /profiles/artist or /profiles/business to save role
-} else {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-}
-```
-
----
-
-#### Replace DEMO_ROLE with real auth → `frontend/src/App.jsx`
-
-```js
-// replace the fake useAuth() with:
-const [session, setSession] = useState(null)
-const [role, setRole] = useState(null)
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    setSession(data.session)
-    setRole(data.session?.user?.user_metadata?.role)
-  })
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session)
-    setRole(session?.user?.user_metadata?.role)
-  })
-}, [])
-```
-
----
-
-#### Wire Artist Feed → `frontend/src/pages/ArtistFeed.jsx`
-
-```js
-// replace MOCK_GIGS with:
-useEffect(() => {
-  fetch(`/api/match/gigs?artist_id=${user.id}`)
-    .then(r => r.json())
-    .then(data => setGigs(data.matches))
-}, [])
-// data.matches has: title, pay, date, category, match_score — same shape as mock
-```
-
----
-
-#### Wire Business Dashboard → `frontend/src/pages/BusinessDashboard.jsx`
-
-```js
-// replace MOCK_ARTISTS with:
-useEffect(() => {
-  fetch(`/api/match/artists?gig_id=${activeGigId}`)
-    .then(r => r.json())
-    .then(data => setRecommended(data.matches))
-}, [activeGigId])
-```
-
----
-
-#### Wire Post Gig form → `frontend/src/pages/PostGig.jsx`
-
-```js
-// replace console.log with:
-await fetch('/api/gigs', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-  body: JSON.stringify(form)
-})
-navigate('/business')
-```
-
----
-
-#### Make it look good
-
-Improve the UI using Tailwind. Ideas:
-- Add loading spinners while API calls are in flight
-- Add empty states ("No gigs yet — post one!")
-- Make the match score badge look more impressive
-- Add artist category icons or colors
-- Make the cards feel more like a social feed
-
----
-
-#### You are done when:
-- [ ] Login and signup work for both artist and business
-- [ ] Artist sees real matched gigs (not mock data)
-- [ ] Business sees real matched artists
-- [ ] Posting a gig saves it to the database
-- [ ] UI looks clean enough to demo on stage
-
----
-
-## Git Rules (important — read this)
+Always branch from `dev`.
 
 ```bash
-# start your work
-git checkout dev           # always branch from dev, not main
+git checkout dev
 git pull origin dev
 git checkout -b feat/your-branch-name
-
-# save your work often
-git add .
-git commit -m "feat: describe what you just built"
-git push origin feat/your-branch-name
-
-# when your feature is ready, open a PR on GitHub
-# → base: dev  (NOT main)
-# → compare: feat/your-branch-name
 ```
 
-**Never push directly to `main` or `dev`.** Always go through a PR.
-
-**Do NOT commit your `.env` file.** It has secret keys. It is in `.gitignore` for a reason.
-
----
-
-## Staying in sync
-
-- Share Supabase keys in the group chat the moment they're ready
-- If you're blocked, say so immediately — don't sit on it
-- When Person A finishes an endpoint, post the route in the chat so Person C can wire it up
-- When Person B finishes matching, post in chat so Person C can swap out the mock data
-
----
-
-## Quick start (run on your laptop)
+Save work often:
 
 ```bash
-# 1. get the code
+git add .
+git commit -m "feat: describe what you built"
+git push -u origin feat/your-branch-name
+```
+
+When ready, open a PR:
+- `base`: `dev`
+- `compare`: `feat/your-branch-name`
+
+Rules:
+- Never push directly to `main`
+- Never push directly to `dev`
+- Never commit `.env`
+
+---
+
+## Staying In Sync
+
+- Share Supabase keys as soon as they are ready
+- Post finished endpoints in team chat
+- Tell the frontend person when mock data can be replaced
+- Raise blockers quickly
+
+---
+
+## Local Setup
+
+From the repo root:
+
+```bash
 git clone https://github.com/daniyar-udel/Philly-Hackhaton.git
 cd Philly-Hackhaton
 git checkout dev
-
-# 2. frontend
-cd frontend
-npm install
-cp .env.example .env    # fill in Supabase keys from group chat
-npm run dev             # → http://localhost:5173
-
-# 3. backend (new terminal)
-cd backend
-python3 -m venv venv
-source venv/bin/activate       # windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env           # fill in all keys from group chat
-uvicorn main:app --reload --port 8000   # → http://localhost:8000/docs
+git pull origin dev
 ```
 
-> **Preview UI without any keys:** open `frontend/src/App.jsx`, set `DEMO_ROLE = 'business'` or `'artist'`
+Frontend:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+If PowerShell blocks `npm`, use:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+Backend:
+
+```bash
+cd ..
+python -m venv .venv
+```
+
+Activate:
+
+```bash
+source .venv/Scripts/activate
+```
+
+Or in PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Install dependencies and run:
+
+```bash
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+.\.venv\Scripts\python -m uvicorn backend.main:app --reload --port 8000
+```
+
+Docs:
+- Frontend: `http://localhost:5173`
+- Backend docs: `http://localhost:8000/docs`
+
+---
+
+## Current Reality Check
+
+Before starting Plan A, make sure these are true:
+
+- You are in the repo folder, not `~`
+- You are on a feature branch created from `dev`
+- `backend/requirements.txt` is installed into `.venv`
+- `frontend/node_modules` exists after `npm install`
+- `backend/.env` and `frontend/.env` are filled in
+
+If all five are true, you are in good shape to continue with Plan A.
