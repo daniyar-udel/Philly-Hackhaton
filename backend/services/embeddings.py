@@ -1,57 +1,78 @@
-"""
-Embedding service — wraps OpenAI text-embedding-3-small.
-
-Usage:
-    from services.embeddings import embed_text, embed_gig, embed_artist_profile
-"""
-
 import os
-from openai import AsyncOpenAI
 
-# TODO: load from .env via pydantic-settings
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+import httpx
+import numpy as np
+from dotenv import load_dotenv
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIM = 1536  # dimensions for text-embedding-3-small
+load_dotenv()
+
+EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_DIM = 1536
+EMBEDDING_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{EMBEDDING_MODEL}:embedContent"
+
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    raise RuntimeError("GOOGLE_API_KEY must be set in .env")
+
+
+def _normalize_embedding(values: list[float]) -> list[float]:
+    vector = np.array(values, dtype=float)
+    norm = np.linalg.norm(vector)
+    if norm == 0:
+        return vector.tolist()
+    return (vector / norm).tolist()
+
+
+def _compact_text(*parts: str) -> str:
+    return " ".join(part.strip() for part in parts if part and part.strip())
 
 
 async def embed_text(text: str) -> list[float]:
-    """
-    Generate an embedding vector for arbitrary text.
-    Returns a list of floats (length = EMBEDDING_DIM).
-    """
-    # TODO: add retry logic / rate limit handling
-    response = await client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=text.strip().replace("\n", " "),
-    )
-    return response.data[0].embedding
+    cleaned_text = " ".join(text.strip().split())
+    if not cleaned_text:
+        raise ValueError("Text to embed cannot be empty")
+
+    payload = {
+        "content": {"parts": [{"text": cleaned_text}]},
+        "taskType": "SEMANTIC_SIMILARITY",
+        "outputDimensionality": EMBEDDING_DIM,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key,
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(EMBEDDING_URL, headers=headers, json=payload)
+        response.raise_for_status()
+
+    embedding = response.json()["embedding"]["values"]
+    return _normalize_embedding(embedding)
 
 
 async def embed_gig(gig: dict) -> list[float]:
-    """
-    Build a natural-language description of a gig and embed it.
-    The richer the text, the better the matching.
-    """
-    text = (
-        f"{gig['title']}. "
-        f"Category: {gig.get('category', '')}. "
-        f"{gig.get('description', '')} "
-        f"Location: {gig.get('location', 'Philadelphia')}. "
-        f"Pay: {gig.get('pay', 'negotiable')}."
+    text = _compact_text(
+        gig.get("title", ""),
+        f"Category: {gig.get('category', 'General')}.",
+        gig.get("description", ""),
+        f"Location: {gig.get('location', 'Philadelphia')}.",
+        f"Pay: {gig.get('pay', 'Negotiable')}.",
+        f"Date: {gig.get('date', 'Flexible')}.",
     )
     return await embed_text(text)
 
 
 async def embed_artist_profile(profile: dict) -> list[float]:
-    """
-    Build a natural-language description of an artist and embed it.
-    """
-    skills_str = ", ".join(profile.get("skills", []))
-    text = (
-        f"{profile['display_name']} is a {profile.get('category', 'artist')} "
-        f"based in {profile.get('location', 'Philadelphia')}. "
-        f"{profile.get('bio', '')} "
-        f"Skills: {skills_str}."
+    skills = profile.get("skills", [])
+    if isinstance(skills, str):
+        skills_text = skills
+    else:
+        skills_text = ", ".join(skills)
+
+    text = _compact_text(
+        f"{profile.get('display_name', 'Artist')} is a {profile.get('category', 'artist')}.",
+        f"Based in {profile.get('location', 'Philadelphia')}.",
+        profile.get("bio", ""),
+        f"Skills: {skills_text}.",
     )
     return await embed_text(text)

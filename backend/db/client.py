@@ -8,7 +8,10 @@ Usage:
 
 import os
 from functools import lru_cache
+from dotenv import load_dotenv
 from supabase import create_client, Client
+
+load_dotenv()
 
 # TODO: replace with pydantic-settings config class
 @lru_cache(maxsize=1)
