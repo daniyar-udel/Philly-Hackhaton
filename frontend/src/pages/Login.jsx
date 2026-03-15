@@ -51,11 +51,21 @@ export default function Login() {
         access_token: data.access_token,
       })
 
-      // Artists go to profile setup so embedding can be generated; businesses go to dashboard
-      const destination = data.role === 'business'
-        ? '/business'
-        : mode === 'signup' ? '/setup' : '/artist'
-      navigate(destination, { replace: true })
+      if (data.role === 'business') {
+        navigate('/business', { replace: true })
+      } else if (mode === 'signup') {
+        // New artist always goes to profile setup
+        navigate('/setup', { replace: true })
+      } else {
+        // Existing artist: check if they have a complete profile
+        try {
+          const profileRes = await fetch(`/api/profiles/artist/${data.user_id}`)
+          const profile = profileRes.ok ? await profileRes.json() : null
+          navigate(profile?.bio ? '/artist' : '/setup', { replace: true })
+        } catch {
+          navigate('/artist', { replace: true })
+        }
+      }
     } catch {
       setError('Could not reach the server. Is the backend running?')
     } finally {
