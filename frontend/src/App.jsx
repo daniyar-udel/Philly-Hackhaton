@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import BusinessDashboard from './pages/BusinessDashboard'
 import ArtistFeed from './pages/ArtistFeed'
 import PostGig from './pages/PostGig'
+import ProfileSetup from './pages/ProfileSetup'
 import { AuthContext, useAuth, getStoredUser, storeUser, clearStoredUser } from './lib/auth'
 
 function ProtectedRoute({ children, requiredRole }) {
@@ -35,6 +36,10 @@ export default function App() {
           <main>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route
+                path="/setup"
+                element={user ? <ProfileSetup /> : <Navigate to="/login" replace />}
+              />
 
               <Route
                 path="/business"

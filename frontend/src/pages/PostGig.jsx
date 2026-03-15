@@ -35,6 +35,9 @@ export default function PostGig() {
         return
       }
 
+      // Trigger embedding in background so matching works immediately
+      fetch(`/api/match/embed/gig/${data.id}`, { method: 'POST' }).catch(() => {})
+
       navigate('/business')
     } catch {
       setError('Could not reach the server. Is the backend running?')

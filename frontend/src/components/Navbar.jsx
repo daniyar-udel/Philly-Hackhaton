@@ -16,10 +16,10 @@ export default function Navbar() {
 
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-green-400 rounded-lg flex items-center justify-center text-green-900 font-black text-sm">
-            EYN
+            GN
           </div>
           <span className="text-white font-bold text-lg tracking-tight">
-            Expand Your <span className="text-green-400">Neighborhood</span>
+            Good <span className="text-green-400">Neighbors</span>
           </span>
         </Link>
 

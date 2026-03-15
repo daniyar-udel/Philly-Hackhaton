@@ -51,7 +51,11 @@ export default function Login() {
         access_token: data.access_token,
       })
 
-      navigate(data.role === 'business' ? '/business' : '/artist', { replace: true })
+      // Artists go to profile setup so embedding can be generated; businesses go to dashboard
+      const destination = data.role === 'business'
+        ? '/business'
+        : mode === 'signup' ? '/setup' : '/artist'
+      navigate(destination, { replace: true })
     } catch {
       setError('Could not reach the server. Is the backend running?')
     } finally {
@@ -67,8 +71,8 @@ export default function Login() {
           Philadelphia's Creator Marketplace
         </span>
         <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight animate-fade-up" style={{ animationDelay: '0.1s' }}>
-          Expand Your<br />
-          <span className="text-green-400">Neighborhood.</span>
+          Good<br />
+          <span className="text-green-400">Neighbors.</span>
         </h1>
         <p className="text-green-200 mt-4 text-base max-w-md mx-auto animate-fade-up" style={{ animationDelay: '0.2s' }}>
           Connecting Philly creators with local businesses — matched by vibe, not keywords.
