@@ -1,6 +1,9 @@
-from fastapi import APIRouter
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional, List
+
+from db.client import get_supabase
 
 router = APIRouter()
 
@@ -23,38 +26,107 @@ class BusinessProfileUpsert(BaseModel):
     website: Optional[str] = None
 
 
+def _first_row(result) -> Optional[dict]:
+    rows = getattr(result, "data", None) or []
+    return rows[0] if rows else None
+
+
 @router.get("/artist/{user_id}")
 async def get_artist_profile(user_id: str):
     """
-    TODO: fetch artist_profiles row for user_id from Supabase
+    Fetch an artist profile from Supabase.
     """
-    return {"user_id": user_id, "message": "TODO: fetch from Supabase"}
+    supabase = get_supabase()
+    try:
+        result = (
+            supabase.table("artist_profiles")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch artist profile: {exc}",
+        ) from exc
+
+    row = _first_row(result)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artist profile not found.",
+        )
+    return row
 
 
 @router.put("/artist/{user_id}")
 async def upsert_artist_profile(user_id: str, body: ArtistProfileUpsert):
     """
     Create or update an artist profile.
-    TODO: upsert into artist_profiles table
     TODO: re-generate embedding from bio+skills+category
     TODO: store embedding in artist_profiles.embedding (pgvector)
     """
-    return {"user_id": user_id, **body.model_dump(), "message": "TODO: persist to Supabase"}
+    supabase = get_supabase()
+    payload = {"user_id": user_id, **body.model_dump()}
+
+    try:
+        result = supabase.table("artist_profiles").upsert(payload).execute()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save artist profile: {exc}",
+        ) from exc
+
+    row = _first_row(result)
+    return row or payload
 
 
 @router.get("/business/{user_id}")
 async def get_business_profile(user_id: str):
     """
-    TODO: fetch business_profiles row for user_id from Supabase
+    Fetch a business profile from Supabase.
     """
-    return {"user_id": user_id, "message": "TODO: fetch from Supabase"}
+    supabase = get_supabase()
+    try:
+        result = (
+            supabase.table("business_profiles")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch business profile: {exc}",
+        ) from exc
+
+    row = _first_row(result)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business profile not found.",
+        )
+    return row
 
 
 @router.put("/business/{user_id}")
 async def upsert_business_profile(user_id: str, body: BusinessProfileUpsert):
     """
     Create or update a business profile.
-    TODO: upsert into business_profiles table
     TODO: re-generate embedding from description+industry
     """
-    return {"user_id": user_id, **body.model_dump(), "message": "TODO: persist to Supabase"}
+    supabase = get_supabase()
+    payload = {"user_id": user_id, **body.model_dump()}
+
+    try:
+        result = supabase.table("business_profiles").upsert(payload).execute()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save business profile: {exc}",
+        ) from exc
+
+    row = _first_row(result)
+    return row or payload
