@@ -8,6 +8,7 @@ Usage:
 
 import os
 from functools import lru_cache
+<<<<<<< HEAD
 from pathlib import Path
 
 import httpx
@@ -32,6 +33,13 @@ class _CompatSyncClient(httpx.Client):
 
 gotrue_http_clients.SyncClient = _CompatSyncClient
 gotrue_base_api.SyncClient = _CompatSyncClient
+
+=======
+from dotenv import load_dotenv
+from supabase import create_client, Client
+>>>>>>> 90a127329e866aab988868ba681927db3efab60b
+
+load_dotenv()
 
 # TODO: replace with pydantic-settings config class
 @lru_cache(maxsize=1)

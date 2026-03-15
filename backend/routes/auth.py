@@ -39,6 +39,8 @@ async def signup(body: SignUpRequest):
     """
     Register a new user in Supabase Auth and create the app-side profile row.
     """
+    import asyncio
+
     supabase = get_supabase()
 
     try:
@@ -52,7 +54,7 @@ async def signup(body: SignUpRequest):
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Supabase signup failed: {_auth_error_message(exc)}",
+            detail=f"Signup failed: {_auth_error_message(exc)}",
         ) from exc
 
     user = getattr(response, "user", None)
@@ -64,22 +66,20 @@ async def signup(body: SignUpRequest):
 
     user_id = str(user.id)
 
+    # Brief pause so Supabase auth.users row is fully committed before the
+    # public.users FK check runs.
+    await asyncio.sleep(0.5)
+
     try:
         supabase.table("users").upsert({"id": user_id, "role": body.role}).execute()
 
         if body.role == "artist":
             supabase.table("artist_profiles").upsert(
-                {
-                    "user_id": user_id,
-                    "display_name": body.display_name,
-                }
+                {"user_id": user_id, "display_name": body.display_name}
             ).execute()
         else:
             supabase.table("business_profiles").upsert(
-                {
-                    "user_id": user_id,
-                    "business_name": body.display_name,
-                }
+                {"user_id": user_id, "business_name": body.display_name}
             ).execute()
     except Exception as exc:
         raise HTTPException(
@@ -87,7 +87,15 @@ async def signup(body: SignUpRequest):
             detail=f"User created, but profile setup failed: {_auth_error_message(exc)}",
         ) from exc
 
-    session = getattr(response, "session", None)
+    # Sign in immediately to get a real session token
+    try:
+        session_response = supabase.auth.sign_in_with_password(
+            {"email": body.email, "password": body.password}
+        )
+        session = getattr(session_response, "session", None)
+    except Exception:
+        session = None
+
     return {
         "user_id": user_id,
         "email": body.email,
