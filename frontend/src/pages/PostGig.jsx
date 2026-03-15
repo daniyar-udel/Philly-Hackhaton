@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 
 const CATEGORIES = [
   'Live Music', 'Food Influencer', 'Social Influencer',
@@ -7,19 +8,39 @@ const CATEGORIES = [
   'Live Painting', 'Creative Direction', 'DJ', 'Other',
 ]
 
-// TODO: POST /gigs with form data
-// TODO: after posting, trigger embedding generation on the backend
 export default function PostGig() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ title: '', category: '', description: '', pay: '', date: '', location: '' })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    // TODO: POST to /api/gigs
-    console.log('Posting gig:', form)
-    navigate('/business')
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/gigs/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, business_id: user.user_id }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.detail || 'Failed to post gig. Try again.')
+        return
+      }
+
+      navigate('/business')
+    } catch {
+      setError('Could not reach the server. Is the backend running?')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -78,8 +99,18 @@ export default function PostGig() {
               placeholder="e.g. Old City, Philadelphia" className="field" />
           </div>
 
-          <button type="submit" className="btn bg-green-600 hover:bg-green-700 text-white w-full py-3.5 rounded-xl">
-            Post Gig — Find My Match
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-4 py-3">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn bg-green-600 hover:bg-green-700 text-white w-full py-3.5 rounded-xl disabled:opacity-60"
+          >
+            {loading ? 'Posting...' : 'Post Gig — Find My Match'}
           </button>
         </form>
       </div>
