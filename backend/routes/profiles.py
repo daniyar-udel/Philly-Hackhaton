@@ -71,6 +71,9 @@ async def upsert_artist_profile(user_id: str, body: ArtistProfileUpsert):
     payload = {"user_id": user_id, **body.model_dump()}
 
     try:
+        # Ensure the user row exists (handles users whose signup completed in
+        # auth.users but failed before the public.users insert)
+        supabase.table("users").upsert({"id": user_id, "role": "artist"}).execute()
         result = supabase.table("artist_profiles").upsert(payload).execute()
     except Exception as exc:
         raise HTTPException(
@@ -121,6 +124,7 @@ async def upsert_business_profile(user_id: str, body: BusinessProfileUpsert):
     payload = {"user_id": user_id, **body.model_dump()}
 
     try:
+        supabase.table("users").upsert({"id": user_id, "role": "business"}).execute()
         result = supabase.table("business_profiles").upsert(payload).execute()
     except Exception as exc:
         raise HTTPException(
