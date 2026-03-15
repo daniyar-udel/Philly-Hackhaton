@@ -9,9 +9,12 @@ import ProfileSetup from './pages/ProfileSetup'
 import { AuthContext, useAuth, getStoredUser, storeUser, clearStoredUser } from './lib/auth'
 
 function ProtectedRoute({ children, requiredRole }) {
+  // Check localStorage directly as fallback — React state update from login()
+  // may not have propagated yet when navigate() fires immediately after.
   const { user } = useAuth()
-  if (!user) return <Navigate to="/login" replace />
-  if (requiredRole && user.role !== requiredRole) return <Navigate to="/" replace />
+  const currentUser = user || getStoredUser()
+  if (!currentUser) return <Navigate to="/login" replace />
+  if (requiredRole && currentUser.role !== requiredRole) return <Navigate to="/" replace />
   return children
 }
 
@@ -38,7 +41,11 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route
                 path="/setup"
-                element={user ? <ProfileSetup /> : <Navigate to="/login" replace />}
+                element={
+                  <ProtectedRoute>
+                    <ProfileSetup />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
