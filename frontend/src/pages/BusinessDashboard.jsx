@@ -57,7 +57,9 @@ export default function BusinessDashboard() {
           if (matchRes.ok) {
             const matchData = await matchRes.json()
             const matches = matchData?.matches || []
-            setCreators(matches.length ? matches : MOCK_CREATORS)
+            setCreators(matches.length
+                ? matches.map(m => ({ ...m, similarity: m.similarity ?? m.match_score ?? 0 }))
+                : MOCK_CREATORS)
           } else {
             setCreators(MOCK_CREATORS)
           }

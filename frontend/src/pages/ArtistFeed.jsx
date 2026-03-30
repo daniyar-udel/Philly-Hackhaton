@@ -45,7 +45,12 @@ export default function ArtistFeed() {
       })
       .then((data) => {
         const matches = data?.matches
-        setGigs(matches?.length ? matches : MOCK_GIGS)
+        if (matches?.length) {
+          // normalise field name — backend returns match_score or similarity
+          setGigs(matches.map(m => ({ ...m, similarity: m.similarity ?? m.match_score ?? 0 })))
+        } else {
+          setGigs(MOCK_GIGS)
+        }
       })
       .catch(() => setGigs(MOCK_GIGS))
       .finally(() => setLoading(false))
